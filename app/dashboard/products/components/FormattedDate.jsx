@@ -8,7 +8,10 @@ export function formatDate(dateString) {
     day: 'numeric',
     calendar: 'gregory',
   }).format(date);
-}
+} 
+
+export function getResponsiveDate(dateString, windowWidth) {
+  if (!dateString) return ''; }
 
 export function formatDateTime(dateString) {
   if (!dateString) return '';
