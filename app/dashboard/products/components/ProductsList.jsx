@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { createSupabaseClient } from "../../../../lib/supabaseClient";
+import { createClientSupabaseClient } from "../../../../lib/supabase/client"; // استخدام الـ client المحسن
 import ProductCard from "./ProductCard";
 import AddProductModal from "./AddProductModal";
 import CustomToaster from "./CustomToaster";
@@ -15,6 +15,9 @@ export default function ProductsList() {
     typeof window !== "undefined" ? window.innerWidth : 1024
   );
 
+  // إنشاء Supabase client
+  const supabase = useMemo(() => createClientSupabaseClient(), []);
+
   // تتبع تغيرات حجم الشاشة
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -29,9 +32,8 @@ export default function ProductsList() {
 
   // تحميل المنتجات من Supabase
   const loadProducts = useCallback(async () => {
-    setLoading(true);
     try {
-      const supabase = createSupabaseClient();
+      setLoading(true);
 
       // تحديد ترتيب الفرز
       const [column, direction] = sortBy.split("_");
@@ -44,6 +46,7 @@ export default function ProductsList() {
       if (error) throw error;
 
       setProducts(data || []);
+      console.log('Products loaded:', data?.length || 0);
     } catch (error) {
       console.error("Error loading products:", error);
       setToast({
@@ -53,12 +56,69 @@ export default function ProductsList() {
     } finally {
       setLoading(false);
     }
-  }, [sortBy]);
+  }, [supabase, sortBy]);
 
-  // تحميل المنتجات عند تغيير طريقة الفرز
+  // تحميل المنتجات والاستماع للتغييرات Real-time
   useEffect(() => {
+    // تحميل البيانات للمرة الأولى
     loadProducts();
-  }, [loadProducts]);
+
+    // إنشاء Real-time subscription
+    const subscription = supabase
+      .channel('products-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // الاستماع لجميع الأحداث (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'products'
+        },
+        (payload) => {
+          console.log('Real-time change detected:', payload);
+          
+          // إعادة تحميل البيانات عند حدوث تغيير
+          loadProducts();
+          
+          // إظهار إشعار حسب نوع التغيير
+          switch (payload.eventType) {
+            case 'INSERT':
+              setToast({
+                type: 'success',
+                message: 'تم إضافة منتج جديد!'
+              });
+              break;
+            case 'UPDATE':
+              setToast({
+                type: 'info',
+                message: 'تم تحديث منتج!'
+              });
+              break;
+            case 'DELETE':
+              setToast({
+                type: 'warning',
+                message: 'تم حذف منتج!'
+              });
+              break;
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
+
+    // تنظيف الـ subscription عند إلغاء الـ component
+    return () => {
+      console.log('Unsubscribing from products channel');
+      subscription.unsubscribe();
+    };
+  }, [supabase, loadProducts]);
+
+  // تحميل المنتجات عند تغيير طريقة الفرز فقط (بدون real-time)
+  useEffect(() => {
+    if (!loading) { // تجنب إعادة التحميل أثناء التحميل الأولي
+      loadProducts();
+    }
+  }, [sortBy]);
 
   // تصفية المنتجات حسب كلمة البحث
   const filteredProducts = useMemo(() => {
@@ -74,21 +134,53 @@ export default function ProductsList() {
 
   // تحديد عدد الأعمدة حسب حجم الشاشة
   const getGridCols = () => {
-    if (windowWidth < 640) return "grid-cols-1"; // للهواتف الصغيرة
-    if (windowWidth < 768) return "grid-cols-1 sm:grid-cols-2"; // للهواتف الكبيرة والأجهزة اللوحية الصغيرة
-    if (windowWidth < 1024) return "grid-cols-1 sm:grid-cols-2 md:grid-cols-2"; // للأجهزة اللوحية
+    if (windowWidth < 640) return "grid-cols-1";
+    if (windowWidth < 768) return "grid-cols-1 sm:grid-cols-2";
+    if (windowWidth < 1024) return "grid-cols-1 sm:grid-cols-2 md:grid-cols-2";
     if (windowWidth < 1280)
-      return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3"; // للشاشات المتوسطة
-    return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4"; // للشاشات الكبيرة
+      return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3";
+    return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4";
+  };
+
+  // دالة لإعادة التحميل اليدوي
+  const handleRefresh = () => {
+    loadProducts();
+    setToast({
+      type: 'info',
+      message: 'تم تحديث البيانات'
+    });
   };
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* رأس الصفحة مع زر الإضافة */}
+           {/* رأس الصفحة مع زر الإضافة */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h2 className="text-lg sm:text-xl font-bold text-gray-800">
-          المنتجات ({filteredProducts.length})
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800">
+            المنتجات ({filteredProducts.length})
+          </h2>
+          {/* زر التحديث اليدوي */}
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="p-2 text-gray-600 hover:text-blue-600 transition-colors disabled:opacity-50"
+            title="تحديث البيانات"
+          >
+            <svg
+              className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+          </button>
+        </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center"
@@ -148,7 +240,17 @@ export default function ProductsList() {
             <option value="title_desc">الاسم (ي-أ)</option>
             <option value="price_asc">السعر (الأقل أولاً)</option>
             <option value="price_desc">السعر (الأعلى أولاً)</option>
+            <option value="created_at_desc">الأحدث أولاً</option>
+            <option value="created_at_asc">الأقدم أولاً</option>
           </select>
+        </div>
+      </div>
+
+      {/* مؤشر الاتصال المباشر */}
+      <div className="flex justify-end">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+          <span>متصل مباشر</span>
         </div>
       </div>
 
@@ -215,7 +317,7 @@ export default function ProductsList() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
-                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2-2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
                   />
                 </svg>
               </div>
