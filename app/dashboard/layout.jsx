@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import '../globals.css';
 import { useRouter } from 'next/navigation';
-// import { createSupabaseClient } from '../../lib/supabaseClient'; // Uncomment and use if needed
+import { createSupabaseClient } from '../../lib/supabaseClient'; 
 
 const cairo = Cairo({ 
   subsets: ['arabic'],
@@ -18,16 +18,21 @@ export default function DashboardLayout({ children }) {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 1024
   );
-  // const supabase = createSupabaseClient(); // Uncomment and use if needed
+  const supabase = createSupabaseClient(); // Uncomment and use if needed
 
-  const handleLogout = async () => {
-    try {
-      // await supabase.auth.signOut(); // Uncomment if supabase is set up
-      router.push('/login');
-    } catch (error) {
-      console.error('خطأ في تسجيل الخروج:', error.message);
+  useEffect(() => {
+  const getUserRole = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error("خطأ في جلب المستخدم:", error.message);
+    } else {
+      console.log("دور المستخدم:", data?.user?.user_metadata?.role);
     }
   };
+
+  getUserRole();
+}, []);
+
 
   const pathname = usePathname();
 
