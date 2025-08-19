@@ -1,0 +1,21 @@
+
+> my-dashboard@0.1.0 build
+> next build
+
+ ⚠ Warning: Found multiple lockfiles. Selecting C:\Users\r\Desktop\dashbord\package-lock.json.
+   Consider removing the lockfiles at:
+   * C:\Users\r\Desktop\dashbord\my-dashboard\package-lock.json
+
+   ▲ Next.js 15.4.5
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+Failed to compile.
+
+./app/dashboard/products/new/page.jsx
+Module not found: Can't resolve '../actions'
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+> Build failed because of webpack errors
