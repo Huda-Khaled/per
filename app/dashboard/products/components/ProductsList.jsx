@@ -21,31 +21,45 @@ export default function ProductsList() {
 
   // تحميل المنتجات - مع useCallback ثابت
   const loadProducts = useCallback(async (skipLoading = false) => {
-    try {
-      if (!skipLoading) setLoading(true);
+  try {
+    if (!skipLoading) setLoading(true);
 
-      const [column, direction] = sortBy.split("_");
-
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .order(column, { ascending: direction === "asc" });
-
-      if (error) throw error;
-
-      setProducts(data || []);
-      console.log('Products loaded:', data?.length || 0);
-    } catch (error) {
-      console.error("Error loading products:", error);
-      setToast({
-        type: "error",
-        message: "حدث خطأ أثناء تحميل المنتجات",
-      });
-      setConnectionStatus('ERROR');
-    } finally {
-      if (!skipLoading) setLoading(false);
+    // إصلاح طريقة تقسيم sortBy
+    let column, direction;
+    
+    if (sortBy.endsWith('_asc')) {
+      column = sortBy.replace('_asc', '');
+      direction = 'asc';
+    } else if (sortBy.endsWith('_desc')) {
+      column = sortBy.replace('_desc', '');
+      direction = 'desc';
+    } else {
+      // fallback
+      column = 'created_at';
+      direction = 'desc';
     }
-  }, [supabase, sortBy]); // sortBy في dependency
+
+    console.log('Sorting by:', { column, direction });
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order(column, { ascending: direction === "asc" });
+
+    if (error) throw error;
+
+    setProducts(data || []);
+    console.log('Products loaded:', data?.length || 0);
+  } catch (error) {
+    console.error("Error loading products:", error);
+    setToast({
+      type: "error",
+      message: "حدث خطأ أثناء تحميل المنتجات",
+    });
+  } finally {
+    if (!skipLoading) setLoading(false);
+  }
+}, [supabase, sortBy]);
 
   // إعداد Real-time subscription
   useEffect(() => {
@@ -171,7 +185,43 @@ export default function ProductsList() {
       window.removeEventListener('offline', handleOffline);
     };
   }, [loadProducts]);
+useEffect(() => {
+  console.log('🚀 بدء اختبار Real-time...');
+  
+  // تحميل المنتجات العادي
+  loadProducts();
 
+  // الاستماع للمنتجات الجديدة
+  const channel = supabase
+    .channel('products-listener')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'products'
+      },
+      (payload) => {
+        console.log('🎉 منتج جديد وصل!', payload.new);
+        
+        // إضافة المنتج للقائمة
+        setProducts(prev => [payload.new, ...prev]);
+        
+        setToast({
+          type: 'success',
+          message: `تم إضافة منتج جديد: ${payload.new.title}`
+        });
+      }
+    )
+    .subscribe((status) => {
+      console.log('📡 حالة Real-time:', status);
+    });
+
+  return () => {
+    console.log('🔌 إغلاق Real-time connection');
+    supabase.removeChannel(channel);
+  };
+}, [supabase]);
   // باقي الكود يبقى كما هو...
 
   // دالة لإعادة الاتصال
