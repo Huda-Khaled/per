@@ -3,7 +3,11 @@ import HeroSection from './components/HeroSection';
 import ProductGrid from './components/ProductGrid';
 import Services from './components/Services';
 import Testimonials from './components/Testimonials';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js'; // ✅ الصحيح
+
+// ✅ إضافة force-dynamic و revalidate
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // Loading component for better UX during data fetching
 function LoadingSection() {
@@ -39,17 +43,35 @@ function ErrorMessage({ message }) {
   );
 }
 
+// ✅ دالة منفصلة لجلب البيانات
+async function getProducts() {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+
+  const { data: products, error } = await supabase
+    .from('products')
+    .select('*');
+
+  console.log('🏠 Home page products fetch:', { 
+    count: products?.length, 
+    error, 
+    timestamp: new Date().toISOString() 
+  });
+
+  if (error) {
+    console.error('Error fetching products:', error);
+    throw new Error('فشل في تحميل المنتجات، يرجى المحاولة مرة أخرى لاحقاً.');
+  }
+
+  return products || [];
+}
+
 export default async function Home() {
   try {
-    // جلب البيانات من جدول المنتجات
-    const { data: products, error } = await supabase
-      .from('products')
-      .select('*');
-
-    if (error) {
-      console.error('Error fetching products:', error);
-      throw new Error('فشل في تحميل المنتجات، يرجى المحاولة مرة أخرى لاحقاً.');
-    }
+    // ✅ جلب البيانات fresh كل مرة
+    const products = await getProducts();
 
     if (!products || products.length === 0) {
       console.warn('No products found');
@@ -72,12 +94,12 @@ export default async function Home() {
           </Suspense>
         </section>
 
-        {/* Services Section - Fixed gap for visual harmony */}
+        {/* Services Section */}
         <section className="w-full">
           <Services />
         </section>
 
-        {/* Testimonials Section - Fixed gap for visual harmony */}
+        {/* Testimonials Section */}
         <section className="w-full">
           <Testimonials />
         </section>
