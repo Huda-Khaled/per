@@ -4,7 +4,8 @@ import { supabase } from '../../../lib/utils';
 import ProductClient from './ProductClient'; // هنعمل component منفصل
 
 // ✅ Server Component مع ISR
-export const revalidate = 0; 
+export const dynamic = 'force-dynamic'; 
+export const revalidate = 0;
 
 async function getProduct(id) {
   const { data, error } = await supabase
