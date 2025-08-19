@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { createClientSupabaseClient } from "../../../../lib/supabase/client"; // استخدام الـ client المحسن
+import { createClientSupabaseClient } from "../../../../lib/supabase/client";
 import ProductCard from "./ProductCard";
 import AddProductModal from "./AddProductModal";
 import CustomToaster from "./CustomToaster";
@@ -11,6 +11,7 @@ export default function ProductsList() {
   const [toast, setToast] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("created_at_desc");
+  const [connectionStatus, setConnectionStatus] = useState('CONNECTING');
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1024
   );
@@ -18,24 +19,11 @@ export default function ProductsList() {
   // إنشاء Supabase client
   const supabase = useMemo(() => createClientSupabaseClient(), []);
 
-  // تتبع تغيرات حجم الشاشة
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // تحميل المنتجات من Supabase
-  const loadProducts = useCallback(async () => {
+  // تحميل المنتجات - مع useCallback ثابت
+  const loadProducts = useCallback(async (skipLoading = false) => {
     try {
-      setLoading(true);
+      if (!skipLoading) setLoading(true);
 
-      // تحديد ترتيب الفرز
       const [column, direction] = sortBy.split("_");
 
       const { data, error } = await supabase
@@ -53,72 +41,171 @@ export default function ProductsList() {
         type: "error",
         message: "حدث خطأ أثناء تحميل المنتجات",
       });
+      setConnectionStatus('ERROR');
     } finally {
-      setLoading(false);
+      if (!skipLoading) setLoading(false);
     }
-  }, [supabase, sortBy]);
+  }, [supabase, sortBy]); // sortBy في dependency
 
-  // تحميل المنتجات والاستماع للتغييرات Real-time
+  // إعداد Real-time subscription
   useEffect(() => {
-    // تحميل البيانات للمرة الأولى
-    loadProducts();
-
-    // إنشاء Real-time subscription
-    const subscription = supabase
-      .channel('products-channel')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // الاستماع لجميع الأحداث (INSERT, UPDATE, DELETE)
-          schema: 'public',
-          table: 'products'
-        },
-        (payload) => {
-          console.log('Real-time change detected:', payload);
-          
-          // إعادة تحميل البيانات عند حدوث تغيير
-          loadProducts();
-          
-          // إظهار إشعار حسب نوع التغيير
-          switch (payload.eventType) {
-            case 'INSERT':
-              setToast({
-                type: 'success',
-                message: 'تم إضافة منتج جديد!'
-              });
-              break;
-            case 'UPDATE':
-              setToast({
-                type: 'info',
-                message: 'تم تحديث منتج!'
-              });
-              break;
-            case 'DELETE':
-              setToast({
-                type: 'warning',
-                message: 'تم حذف منتج!'
-              });
-              break;
-          }
+    let subscription;
+    
+    const setupRealtimeSubscription = async () => {
+      try {
+        // التحقق من صحة الـ session أولاً
+        const { data: { session }, error: authError } = await supabase.auth.getSession();
+        
+        if (authError) {
+          console.error('Auth error:', authError);
+          setConnectionStatus('ERROR');
+          return;
         }
-      )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-      });
 
-    // تنظيف الـ subscription عند إلغاء الـ component
+        console.log('Setting up realtime subscription...');
+        setConnectionStatus('CONNECTING');
+
+        // تحميل البيانات للمرة الأولى
+        await loadProducts();
+
+        // إنشاء Real-time subscription
+        subscription = supabase
+          .channel('products-changes', {
+            config: {
+              broadcast: { self: true }
+            }
+          })
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'products'
+            },
+            (payload) => {
+              console.log('Real-time change detected:', payload);
+              
+              // تحديث البيانات بدون loading indicator
+              loadProducts(true);
+              
+              // إظهار إشعار
+              const messages = {
+                INSERT: 'تم إضافة منتج جديد!',
+                UPDATE: 'تم تحديث منتج!',
+                DELETE: 'تم حذف منتج!'
+              };
+              
+              const types = {
+                INSERT: 'success',
+                UPDATE: 'info', 
+                DELETE: 'warning'
+              };
+
+              setToast({
+                type: types[payload.eventType] || 'info',
+                message: messages[payload.eventType] || 'تم تحديث البيانات'
+              });
+            }
+          )
+          .subscribe((status, err) => {
+            console.log('Subscription status:', status, err);
+            
+            if (status === 'SUBSCRIBED') {
+              setConnectionStatus('CONNECTED');
+              console.log('Successfully subscribed to products changes');
+            } else if (status === 'CHANNEL_ERROR') {
+              setConnectionStatus('ERROR');
+              console.error('Subscription error:', err);
+            } else if (status === 'TIMED_OUT') {
+              setConnectionStatus('TIMEOUT');
+              console.error('Subscription timeout');
+            }
+          });
+
+      } catch (error) {
+        console.error('Failed to setup subscription:', error);
+        setConnectionStatus('ERROR');
+      }
+    };
+
+    setupRealtimeSubscription();
+
+    // تنظيف الـ subscription
     return () => {
-      console.log('Unsubscribing from products channel');
-      subscription.unsubscribe();
+      if (subscription) {
+        console.log('Cleaning up subscription...');
+        supabase.removeChannel(subscription);
+      }
     };
   }, [supabase, loadProducts]);
 
-  // تحميل المنتجات عند تغيير طريقة الفرز فقط (بدون real-time)
+  // تتبع تغيرات حجم الشاشة
   useEffect(() => {
-    if (!loading) { // تجنب إعادة التحميل أثناء التحميل الأولي
-      loadProducts();
-    }
-  }, [sortBy]);
+    if (typeof window === "undefined") return;
+
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // إعادة الاتصال عند انقطاع الشبكة
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('Network back online, reloading products...');
+      loadProducts(true);
+    };
+
+    const handleOffline = () => {
+      console.log('Network offline');
+      setConnectionStatus('OFFLINE');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [loadProducts]);
+
+  // باقي الكود يبقى كما هو...
+
+  // دالة لإعادة الاتصال
+  const reconnect = () => {
+    window.location.reload(); // إعادة تحميل الصفحة لإعادة إنشاء الاتصال
+  };
+
+  // مؤشر حالة الاتصال المحسن
+  const getConnectionIndicator = () => {
+    const indicators = {
+      CONNECTING: { color: 'bg-yellow-400', text: 'جاري الاتصال...', animate: 'animate-pulse' },
+      CONNECTED: { color: 'bg-green-400', text: 'متصل مباشر', animate: 'animate-pulse' },
+      ERROR: { color: 'bg-red-400', text: 'خطأ في الاتصال', animate: '' },
+      TIMEOUT: { color: 'bg-orange-400', text: 'انتهت مهلة الاتصال', animate: '' },
+      OFFLINE: { color: 'bg-gray-400', text: 'غير متصل', animate: '' }
+    };
+
+    const indicator = indicators[connectionStatus] || indicators.CONNECTING;
+    
+    return (
+      <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className={`w-2 h-2 ${indicator.color} rounded-full ${indicator.animate}`}></div>
+        <span>{indicator.text}</span>
+              {(connectionStatus === 'ERROR' || connectionStatus === 'TIMEOUT') && (
+          <button 
+            onClick={reconnect}
+            className="text-xs text-blue-600 hover:text-blue-800 underline ml-1"
+          >
+            إعادة الاتصال
+          </button>
+        )}
+      </div>
+    );
+  };
 
   // تصفية المنتجات حسب كلمة البحث
   const filteredProducts = useMemo(() => {
@@ -143,17 +230,29 @@ export default function ProductsList() {
   };
 
   // دالة لإعادة التحميل اليدوي
-  const handleRefresh = () => {
-    loadProducts();
+  const handleRefresh = async () => {
     setToast({
       type: 'info',
-      message: 'تم تحديث البيانات'
+      message: 'جاري تحديث البيانات...'
     });
+    
+    try {
+      await loadProducts();
+      setToast({
+        type: 'success',
+        message: 'تم تحديث البيانات بنجاح'
+      });
+    } catch (error) {
+      setToast({
+        type: 'error',
+        message: 'فشل في تحديث البيانات'
+      });
+    }
   };
 
   return (
     <div className="space-y-4 sm:space-y-6">
-           {/* رأس الصفحة مع زر الإضافة */}
+      {/* رأس الصفحة مع زر الإضافة */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div className="flex items-center gap-3">
           <h2 className="text-lg sm:text-xl font-bold text-gray-800">
@@ -246,12 +345,9 @@ export default function ProductsList() {
         </div>
       </div>
 
-      {/* مؤشر الاتصال المباشر */}
+      {/* مؤشر الاتصال المباشر المحسن */}
       <div className="flex justify-end">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-          <span>متصل مباشر</span>
-        </div>
+        {getConnectionIndicator()}
       </div>
 
       {/* عرض المنتجات */}
@@ -355,7 +451,7 @@ export default function ProductsList() {
             <ProductCard
               key={product.id}
               product={product}
-              onProductUpdated={loadProducts}
+              onProductUpdated={() => loadProducts(true)} // تجنب loading indicator
             />
           ))}
         </div>
@@ -365,7 +461,7 @@ export default function ProductsList() {
       {showAddModal && (
         <AddProductModal
           onClose={() => setShowAddModal(false)}
-          onProductAdded={loadProducts}
+          onProductAdded={() => loadProducts(true)} // تجنب loading indicator
         />
       )}
 
@@ -376,6 +472,7 @@ export default function ProductsList() {
           message={toast.message}
           onClose={() => setToast(null)}
           position={windowWidth < 640 ? "bottom-center" : "bottom-right"}
+          autoClose={3000} // إغلاق تلقائي بعد 3 ثواني
         />
       )}
     </div>
