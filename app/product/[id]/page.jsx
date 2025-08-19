@@ -1,11 +1,10 @@
-// ❌ امسح 'use client'
 import React from 'react';
 import Image from 'next/image';
 import { supabase } from '../../../lib/utils';
 import ProductClient from './ProductClient'; // هنعمل component منفصل
 
 // ✅ Server Component مع ISR
-export const revalidate = 300; // كل 5 دقائق
+export const revalidate = 0; 
 
 async function getProduct(id) {
   const { data, error } = await supabase
