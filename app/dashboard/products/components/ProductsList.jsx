@@ -19,72 +19,61 @@ export default function ProductsList() {
   // إنشاء Supabase client
   const supabase = useMemo(() => createClientSupabaseClient(), []);
 
-  // تحميل المنتجات - مع useCallback ثابت
+  // تحميل المنتجات مع إصلاح خطأ الفرز
   const loadProducts = useCallback(async (skipLoading = false) => {
-  try {
-    if (!skipLoading) setLoading(true);
+    try {
+      if (!skipLoading) setLoading(true);
 
-    // إصلاح طريقة تقسيم sortBy
-    let column, direction;
-    
-    if (sortBy.endsWith('_asc')) {
-      column = sortBy.replace('_asc', '');
-      direction = 'asc';
-    } else if (sortBy.endsWith('_desc')) {
-      column = sortBy.replace('_desc', '');
-      direction = 'desc';
-    } else {
-      // fallback
-      column = 'created_at';
-      direction = 'desc';
+      // حل آمن للفرز باستخدام object mapping
+      const sortOptions = {
+        'title_asc': { column: 'title', direction: 'asc' },
+        'title_desc': { column: 'title', direction: 'desc' },
+        'price_asc': { column: 'price', direction: 'asc' },
+        'price_desc': { column: 'price', direction: 'desc' },
+        'created_at_asc': { column: 'created_at', direction: 'asc' },
+        'created_at_desc': { column: 'created_at', direction: 'desc' }
+      };
+
+      const sortOption = sortOptions[sortBy] || { column: 'created_at', direction: 'desc' };
+      const { column, direction } = sortOption;
+
+      console.log('Sorting by:', { column, direction, sortBy });
+
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order(column, { ascending: direction === "asc" });
+
+      if (error) throw error;
+
+      setProducts(data || []);
+      console.log('Products loaded:', data?.length || 0);
+    } catch (error) {
+      console.error("Error loading products:", error);
+      setToast({
+        type: "error",
+        message: "حدث خطأ أثناء تحميل المنتجات",
+      });
+    } finally {
+      if (!skipLoading) setLoading(false);
     }
+  }, [supabase, sortBy]);
 
-    console.log('Sorting by:', { column, direction });
-
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order(column, { ascending: direction === "asc" });
-
-    if (error) throw error;
-
-    setProducts(data || []);
-    console.log('Products loaded:', data?.length || 0);
-  } catch (error) {
-    console.error("Error loading products:", error);
-    setToast({
-      type: "error",
-      message: "حدث خطأ أثناء تحميل المنتجات",
-    });
-  } finally {
-    if (!skipLoading) setLoading(false);
-  }
-}, [supabase, sortBy]);
-
-  // إعداد Real-time subscription
+  // إعداد Real-time subscription محسن
   useEffect(() => {
     let subscription;
     
     const setupRealtimeSubscription = async () => {
       try {
-        // التحقق من صحة الـ session أولاً
-        const { data: { session }, error: authError } = await supabase.auth.getSession();
-        
-        if (authError) {
-          console.error('Auth error:', authError);
-          setConnectionStatus('ERROR');
-          return;
-        }
-
         console.log('Setting up realtime subscription...');
         setConnectionStatus('CONNECTING');
 
         // تحميل البيانات للمرة الأولى
         await loadProducts();
 
-        // إنشاء Real-time subscription
+        // إنشاء Real-time subscription موحد
         subscription = supabase
-          .channel('products-changes', {
+          .channel('products-realtime-channel', {
             config: {
               broadcast: { self: true }
             }
@@ -99,30 +88,48 @@ export default function ProductsList() {
             (payload) => {
               console.log('Real-time change detected:', payload);
               
-              // تحديث البيانات بدون loading indicator
-              loadProducts(true);
+              const { eventType, new: newProduct, old: oldProduct } = payload;
               
-              // إظهار إشعار
-              const messages = {
-                INSERT: 'تم إضافة منتج جديد!',
-                UPDATE: 'تم تحديث منتج!',
-                DELETE: 'تم حذف منتج!'
-              };
-              
-              const types = {
-                INSERT: 'success',
-                UPDATE: 'info', 
-                DELETE: 'warning'
-              };
-
-              setToast({
-                type: types[payload.eventType] || 'info',
-                message: messages[payload.eventType] || 'تم تحديث البيانات'
-              });
+              // تحديث الحالة بناءً على نوع الحدث
+              switch (eventType) {
+                case 'INSERT':
+                  setProducts(prev => [newProduct, ...prev]);
+                  setToast({
+                    type: 'success',
+                    message: `تم إضافة منتج جديد: ${newProduct.title}`
+                  });
+                  break;
+                  
+                case 'UPDATE':
+                  setProducts(prev => 
+                    prev.map(product => 
+                      product.id === newProduct.id ? newProduct : product
+                    )
+                  );
+                  setToast({
+                    type: 'info',
+                    message: `تم تحديث منتج: ${newProduct.title}`
+                  });
+                  break;
+                  
+                case 'DELETE':
+                  setProducts(prev => 
+                    prev.filter(product => product.id !== oldProduct.id)
+                  );
+                  setToast({
+                    type: 'warning',
+                    message: `تم حذف منتج: ${oldProduct.title}`
+                  });
+                  break;
+                  
+                default:
+                  // إعادة تحميل البيانات للأحداث غير المتوقعة
+                  loadProducts(true);
+              }
             }
           )
           .subscribe((status, err) => {
-            console.log('Subscription status:', status, err);
+            console.log('Subscription status:', status);
             
             if (status === 'SUBSCRIBED') {
               setConnectionStatus('CONNECTED');
@@ -133,6 +140,9 @@ export default function ProductsList() {
             } else if (status === 'TIMED_OUT') {
               setConnectionStatus('TIMEOUT');
               console.error('Subscription timeout');
+            } else if (status === 'CLOSED') {
+              setConnectionStatus('OFFLINE');
+              console.log('Subscription closed');
             }
           });
 
@@ -169,6 +179,7 @@ export default function ProductsList() {
   useEffect(() => {
     const handleOnline = () => {
       console.log('Network back online, reloading products...');
+      setConnectionStatus('CONNECTING');
       loadProducts(true);
     };
 
@@ -177,66 +188,56 @@ export default function ProductsList() {
       setConnectionStatus('OFFLINE');
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    if (typeof window !== "undefined") {
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
 
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
   }, [loadProducts]);
-useEffect(() => {
-  console.log('🚀 بدء اختبار Real-time...');
-  
-  // تحميل المنتجات العادي
-  loadProducts();
-
-  // الاستماع للمنتجات الجديدة
-  const channel = supabase
-    .channel('products-listener')
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'products'
-      },
-      (payload) => {
-        console.log('🎉 منتج جديد وصل!', payload.new);
-        
-        // إضافة المنتج للقائمة
-        setProducts(prev => [payload.new, ...prev]);
-        
-        setToast({
-          type: 'success',
-          message: `تم إضافة منتج جديد: ${payload.new.title}`
-        });
-      }
-    )
-    .subscribe((status) => {
-      console.log('📡 حالة Real-time:', status);
-    });
-
-  return () => {
-    console.log('🔌 إغلاق Real-time connection');
-    supabase.removeChannel(channel);
-  };
-}, [supabase]);
-  // باقي الكود يبقى كما هو...
 
   // دالة لإعادة الاتصال
-  const reconnect = () => {
-    window.location.reload(); // إعادة تحميل الصفحة لإعادة إنشاء الاتصال
-  };
+  const reconnect = useCallback(() => {
+    setConnectionStatus('CONNECTING');
+    loadProducts(true);
+  }, [loadProducts]);
 
   // مؤشر حالة الاتصال المحسن
   const getConnectionIndicator = () => {
     const indicators = {
-      CONNECTING: { color: 'bg-yellow-400', text: 'جاري الاتصال...', animate: 'animate-pulse' },
-      CONNECTED: { color: 'bg-green-400', text: 'متصل مباشر', animate: 'animate-pulse' },
-      ERROR: { color: 'bg-red-400', text: 'خطأ في الاتصال', animate: '' },
-      TIMEOUT: { color: 'bg-orange-400', text: 'انتهت مهلة الاتصال', animate: '' },
-      OFFLINE: { color: 'bg-gray-400', text: 'غير متصل', animate: '' }
+      CONNECTING: { 
+        color: 'bg-yellow-400', 
+        text: 'جاري الاتصال...', 
+        animate: 'animate-pulse',
+        showReconnect: false
+      },
+      CONNECTED: { 
+        color: 'bg-green-400', 
+        text: 'متصل مباشر', 
+        animate: 'animate-pulse',
+        showReconnect: false
+      },
+      ERROR: { 
+        color: 'bg-red-400', 
+        text: 'خطأ في الاتصال', 
+        animate: '',
+        showReconnect: true
+      },
+      TIMEOUT: { 
+        color: 'bg-orange-400', 
+        text: 'انتهت مهلة الاتصال', 
+        animate: '',
+        showReconnect: true
+      },
+      OFFLINE: { 
+        color: 'bg-gray-400', 
+        text: 'غير متصل', 
+        animate: '',
+        showReconnect: true
+      }
     };
 
     const indicator = indicators[connectionStatus] || indicators.CONNECTING;
@@ -245,10 +246,11 @@ useEffect(() => {
       <div className="flex items-center gap-2 text-sm text-gray-500">
         <div className={`w-2 h-2 ${indicator.color} rounded-full ${indicator.animate}`}></div>
         <span>{indicator.text}</span>
-              {(connectionStatus === 'ERROR' || connectionStatus === 'TIMEOUT') && (
+        {indicator.showReconnect && (
           <button 
             onClick={reconnect}
-            className="text-xs text-blue-600 hover:text-blue-800 underline ml-1"
+            className="text-xs text-blue-600 hover:text-blue-800 underline ml-1 transition-colors"
+            disabled={connectionStatus === 'CONNECTING'}
           >
             إعادة الاتصال
           </button>
@@ -261,11 +263,12 @@ useEffect(() => {
   const filteredProducts = useMemo(() => {
     if (!searchTerm.trim()) return products;
 
-    const searchLower = searchTerm.toLowerCase();
+    const searchLower = searchTerm.toLowerCase().trim();
     return products.filter(
       (product) =>
         product.title?.toLowerCase().includes(searchLower) ||
-        product.description?.toLowerCase().includes(searchLower)
+        product.description?.toLowerCase().includes(searchLower) ||
+        product.category?.toLowerCase().includes(searchLower)
     );
   }, [products, searchTerm]);
 
@@ -274,13 +277,12 @@ useEffect(() => {
     if (windowWidth < 640) return "grid-cols-1";
     if (windowWidth < 768) return "grid-cols-1 sm:grid-cols-2";
     if (windowWidth < 1024) return "grid-cols-1 sm:grid-cols-2 md:grid-cols-2";
-    if (windowWidth < 1280)
-      return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3";
+    if (windowWidth < 1280) return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3";
     return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4";
   };
 
   // دالة لإعادة التحميل اليدوي
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setToast({
       type: 'info',
       message: 'جاري تحديث البيانات...'
@@ -298,7 +300,33 @@ useEffect(() => {
         message: 'فشل في تحديث البيانات'
       });
     }
-  };
+  }, [loadProducts]);
+
+  // دالة إغلاق الإشعار
+  const handleCloseToast = useCallback(() => {
+    setToast(null);
+  }, []);
+
+  // دالة فتح نافذة الإضافة
+  const handleOpenAddModal = useCallback(() => {
+    setShowAddModal(true);
+  }, []);
+
+  // دالة إغلاق نافذة الإضافة
+  const handleCloseAddModal = useCallback(() => {
+    setShowAddModal(false);
+  }, []);
+
+  // دالة عند إضافة منتج جديد
+  const handleProductAdded = useCallback(() => {
+    // لا نحتاج لإعادة تحميل البيانات لأن Real-time سيتولى الأمر
+    setShowAddModal(false);
+  }, []);
+
+  // دالة عند تحديث منتج
+  const handleProductUpdated = useCallback(() => {
+    // لا نحتاج لإعادة تحميل البيانات لأن Real-time سيتولى الأمر
+  }, []);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -312,7 +340,7 @@ useEffect(() => {
           <button
             onClick={handleRefresh}
             disabled={loading}
-            className="p-2 text-gray-600 hover:text-blue-600 transition-colors disabled:opacity-50"
+            className="p-2 text-gray-600 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="تحديث البيانات"
           >
             <svg
@@ -331,7 +359,7 @@ useEffect(() => {
           </button>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={handleOpenAddModal}
           className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center"
         >
           <svg
@@ -395,7 +423,7 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* مؤشر الاتصال المباشر المحسن */}
+      {/* مؤشر الاتصال المباشر */}
       <div className="flex justify-end">
         {getConnectionIndicator()}
       </div>
@@ -445,7 +473,7 @@ useEffect(() => {
               </p>
               <button
                 onClick={() => setSearchTerm("")}
-                className="text-blue-600 hover:underline"
+                className="text-blue-600 hover:underline transition-colors"
               >
                 مسح البحث
               </button>
@@ -471,7 +499,7 @@ useEffect(() => {
                 لا توجد منتجات بعد. قم بإضافة منتج جديد للبدء.
               </p>
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={handleOpenAddModal}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <span className="flex items-center justify-center">
@@ -501,7 +529,7 @@ useEffect(() => {
             <ProductCard
               key={product.id}
               product={product}
-              onProductUpdated={() => loadProducts(true)} // تجنب loading indicator
+              onProductUpdated={handleProductUpdated}
             />
           ))}
         </div>
@@ -510,8 +538,8 @@ useEffect(() => {
       {/* نافذة إضافة منتج جديد */}
       {showAddModal && (
         <AddProductModal
-          onClose={() => setShowAddModal(false)}
-          onProductAdded={() => loadProducts(true)} // تجنب loading indicator
+          onClose={handleCloseAddModal}
+          onProductAdded={handleProductAdded}
         />
       )}
 
@@ -520,9 +548,9 @@ useEffect(() => {
         <CustomToaster
           type={toast.type}
           message={toast.message}
-          onClose={() => setToast(null)}
+          onClose={handleCloseToast}
           position={windowWidth < 640 ? "bottom-center" : "bottom-right"}
-          autoClose={3000} // إغلاق تلقائي بعد 3 ثواني
+          autoClose={4000}
         />
       )}
     </div>
