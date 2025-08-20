@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import DeleteProductButton from './DeleteProductButton';
 import EditProductModal from './EditProductModal';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { formatDate, getResponsiveDate } from './FormattedDate';
 import { useInView } from 'react-intersection-observer'; // اختياري: يمكنك تثبيت هذه المكتبة للتحميل البطيء
 

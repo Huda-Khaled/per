@@ -62,6 +62,8 @@ export default function LoginPage() {
 
       // ✅ تأخير خفيف للتوجيه بعد إظهار الرسالة
     } catch (error) {
+            console.error('Error:', error);
+
       setMessage({
         type: "error",
         text: "❌ فشل تسجيل الدخول. تحقق من البريد وكلمة المرور.",

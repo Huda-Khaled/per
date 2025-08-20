@@ -6,7 +6,6 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
-// ملاحظة: لم نعد نستخدم دالة createSupabaseServerClient المستوردة من lib
 
 export async function addProduct(prevState, formData) {
   // 2. التعديل الرئيسي هنا: إنشاء عميل Supabase باستخدام cookies

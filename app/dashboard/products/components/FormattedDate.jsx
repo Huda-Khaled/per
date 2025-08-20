@@ -10,7 +10,7 @@ export function formatDate(dateString) {
   }).format(date);
 } 
 
-export function getResponsiveDate(dateString, windowWidth) {
+export function getResponsiveDate(dateString) {
   if (!dateString) return ''; }
 
 export function formatDateTime(dateString) {

@@ -52,7 +52,8 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
     setImagePreview(URL.createObjectURL(file));
   };
 
-  const handleSubmit = async (e) => {
+  // دالة تحديث المنتج مباشرة
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
@@ -95,14 +96,14 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
 
       setToast({
         type: 'success',
-        message: 'تم تحديث المنتج بنجاح',
+        message: 'تم تأكيد المنتج بنجاح',
       });
 
       if (onProductUpdated) {
         onProductUpdated();
       }
 
-      // Close modal after a short delay to allow user to see success message
+      // Close modal after a short delay
       setTimeout(() => {
         onClose();
       }, 1500);
@@ -126,14 +127,17 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
       aria-labelledby="edit-modal-title"
     >
       <div 
-        className="bg-white rounded-lg w-full max-w-lg md:max-w-2xl mx-auto overflow-hidden shadow-xl transform transition-all"
+        className="bg-white rounded-lg w-full max-w-lg md:max-w-2xl mx-auto overflow-hidden shadow-xl transform transition-all relative"
         onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: '90vh' }}
       >
-        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200">
-          <h2 id="edit-modal-title" className="text-lg sm:text-xl font-bold text-right rtl:text-right">تعديل المنتج</h2>
+        {/* الهيدر */}
+        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 bg-gray-50">
+          <h2 id="edit-modal-title" className="text-lg sm:text-xl font-bold text-gray-800">
+            تعديل المنتج
+          </h2>
           <button
-            onClick={onClose}
+            onClick={() => !isSubmitting && onClose()}
             className="text-gray-500 hover:text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 rounded-full p-1"
             disabled={isSubmitting}
             aria-label="إغلاق"
@@ -144,8 +148,9 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
           </button>
         </div>
 
-        <div className="overflow-y-auto p-4 sm:p-6" style={{ maxHeight: 'calc(90vh - 4rem)' }}>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        {/* المحتوى */}
+        <div className="p-4 sm:p-6" style={{ maxHeight: 'calc(90vh - 8rem)', overflowY: 'auto' }}>
+          <form onSubmit={handleFormSubmit} className="space-y-4">
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1 text-right">
                 عنوان المنتج
@@ -158,6 +163,7 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
                 onChange={handleChange}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
+                disabled={isSubmitting}
                 dir="rtl"
               />
             </div>
@@ -174,6 +180,7 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
                 rows="3"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
+                disabled={isSubmitting}
                 dir="rtl"
               />
             </div>
@@ -192,6 +199,7 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
                 min="0"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
+                disabled={isSubmitting}
                 dir="rtl"
               />
             </div>
@@ -209,7 +217,8 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
                     viewBox="0 0 48 48"
                     aria-hidden="true"
                   >
-                    <path                       d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                    <path
+                      d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
                       strokeWidth={2}
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -228,6 +237,7 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
                         accept="image/*"
                         onChange={handleImageChange}
                         className="sr-only"
+                        disabled={isSubmitting}
                       />
                     </label>
                     <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF حتى 10MB</p>
@@ -252,6 +262,7 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
                     }}
                     className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
                     aria-label="حذف الصورة"
+                    disabled={isSubmitting}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -261,29 +272,32 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
               )}
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+            {/* أزرار النموذج */}
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-2 sm:mt-0 w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+                className="w-full sm:w-auto px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                 disabled={isSubmitting}
               >
                 إلغاء
               </button>
               <button
                 type="submit"
-                className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    جاري الحفظ...
+                    جاري التحديث...
                   </span>
-                ) : 'حفظ التغييرات'}
+                ) : (
+                  'تعديل المنتج'
+                )}
               </button>
             </div>
           </form>
