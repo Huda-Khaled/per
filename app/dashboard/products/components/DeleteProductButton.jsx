@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import { useState, useEffect } from 'react';
 import { createSupabaseClient } from '../../../../lib/supabaseClient';
 import CustomToaster from './CustomToaster';
