@@ -13,13 +13,14 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" dir="rtl">
+    <html lang="ar" dir="rtl">
       <body className={inter.className}>
-        <PromoBanner message="احصل على أي منتج مقابل 7 دينار كويتي فقط" messageEn="Get any product for 7 Kuwaiti dinars" />
+        <PromoBanner
+          message="ضمان ٣ أيام على جميع المنتجات"
+          messageEn="3-day warranty on all products"
+        />
         <Header />
-        <main className="min-h-screen">
-          {children}
-        </main>
+        <main className="min-h-screen">{children}</main>
         <Footer />
       </body>
     </html>

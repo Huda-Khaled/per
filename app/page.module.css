@@ -1,9 +1,9 @@
 .page {
-  --gray-rgb: 0, 0, 0;
-  --gray-alpha-200: rgba(var(--gray-rgb), 0.08);
-  --gray-alpha-100: rgba(var(--gray-rgb), 0.05);
+  --gray-rgb: 51, 51, 51; /* #333333 محول لـ RGB */
+  --gray-alpha-200: rgba(var(--gray-rgb), 0.2);
+  --gray-alpha-100: rgba(var(--gray-rgb), 0.1);
 
-  --button-primary-hover: #383838;
+  --button-primary-hover: #555555; /* لون الهوفر للأزرار */
   --button-secondary-hover: #f2f2f2;
 
   display: grid;
@@ -18,11 +18,11 @@
 
 @media (prefers-color-scheme: dark) {
   .page {
-    --gray-rgb: 255, 255, 255;
-    --gray-alpha-200: rgba(var(--gray-rgb), 0.145);
-    --gray-alpha-100: rgba(var(--gray-rgb), 0.06);
+    --gray-rgb: 51, 51, 51; /* نفس اللون في الداكن */
+    --gray-alpha-200: rgba(var(--gray-rgb), 0.3);
+    --gray-alpha-100: rgba(var(--gray-rgb), 0.15);
 
-    --button-primary-hover: #ccc;
+    --button-primary-hover: #666666;
     --button-secondary-hover: #1a1a1a;
   }
 }
@@ -81,13 +81,14 @@
 }
 
 a.primary {
-  background: var(--foreground);
-  color: var(--background);
+  background: #333333; /* اللون المطلوب */
+  color: white;
   gap: 8px;
 }
 
 a.secondary {
-  border-color: var(--gray-alpha-200);
+  border-color: #333333; /* اللون المطلوب */
+  color: #333333;
   min-width: 158px;
 }
 
@@ -115,7 +116,8 @@ a.secondary {
   }
 
   a.secondary:hover {
-    background: var(--button-secondary-hover);
+    background: #333333;
+    color: white;
     border-color: transparent;
   }
 

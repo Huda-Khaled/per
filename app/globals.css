@@ -1,8 +1,8 @@
 :root {
   --font-geist-sans: 'Geist', sans-serif;
   --font-geist-mono: 'Geist Mono', monospace;
-  --primary-color: #b91c1c;
-  --secondary-color: #1e293b;
+  --primary-color: #333333;
+  --secondary-color: #1a1a1a;
 }
 @tailwind base;
 @tailwind components;
@@ -22,13 +22,24 @@ body {
   margin: 0 auto;
 }
 
-/* Custom Utilities */
+/* Custom Utilities - مصححة */
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 text-white px-6 py-2 rounded hover:bg-primary-700 transition-colors;
+    @apply bg-customBlack text-white px-6 py-2 rounded hover:bg-primary-600 transition-colors;
   }
 
   .btn-secondary {
-    @apply border border-primary-600 text-primary-600 px-6 py-2 rounded hover:bg-primary-50 transition-colors;
+    @apply border border-customBlack text-customBlack px-6 py-2 rounded hover:bg-customBlack hover:text-white transition-colors;
+  }
+  .bg-custom {
+    @apply bg-customBlack;
+  }
+
+  .text-custom {
+    @apply text-customBlack;
+  }
+
+  .border-custom {
+    @apply border-customBlack;
   }
 }

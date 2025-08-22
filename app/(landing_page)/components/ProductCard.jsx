@@ -60,7 +60,7 @@ export default function ProductCard({ product }) {
         {/* Action Buttons - Responsive grid layout */}
         <div className="grid grid-cols-1 gap-2 mt-2 sm:mt-3">
           <AddToCartButton product={product} />
-          <ViewProductButton productId={product.id} />
+          {/* <ViewProductButton productId={product.id} /> */}
         </div>
       </div>
     </div>
