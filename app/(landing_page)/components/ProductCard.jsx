@@ -51,7 +51,7 @@ export default function ProductCard({ product }) {
               </>
             ) : (
               <span className="text-primary-600 font-bold text-sm sm:text-base md:text-lg">
-                {product.price} دينار
+                {product.price} دينار كويتي
               </span>
             )}
           </div>

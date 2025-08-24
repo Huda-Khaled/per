@@ -474,6 +474,8 @@ export default function OrdersPage() {
                 </div>
               </div>
 
+              {/* Replace the order details section in your component with this code */}
+
               {expandedOrderId === order.id && (
                 <div className="border-t border-gray-200 p-3 sm:p-4 bg-gray-50">
                   <div className="mb-4">
@@ -521,124 +523,80 @@ export default function OrdersPage() {
                     </div>
                   </div>
 
-                  <h4 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">
-                    تفاصيل الطلب
-                  </h4>
+                  {/* تفاصيل الطلب بالشكل الجديد */}
+                  <div className="mb-4">
+                    {/* <h4 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">
+                      تفاصيل الطلب
+                    </h4> */}
 
-                  {/* جدول لعرض التفاصيل للشاشات المتوسطة والكبيرة */}
-                  <div className="bg-white rounded border border-gray-200 overflow-hidden hidden sm:block">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      {/* في عرض الجدول للشاشات المتوسطة والكبيرة */}
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th
-                            scope="col"
-                            className="px-3 py-2 sm:px-4 text-right text-xs font-medium text-gray-500 uppercase"
-                          >
-                            المنتج
-                          </th>
-                          {/* إضافة عمود للصورة */}
-                          <th
-                            scope="col"
-                            className="px-3 py-2 sm:px-4 text-center text-xs font-medium text-gray-500 uppercase"
-                          >
-                            الصورة
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-3 py-2 sm:px-4 text-center text-xs font-medium text-gray-500 uppercase"
-                          >
-                            الكمية
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-3 py-2 sm:px-4 text-center text-xs font-medium text-gray-500 uppercase"
-                          >
-                            السعر
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-3 py-2 sm:px-4 text-center text-xs font-medium text-gray-500 uppercase"
-                          >
-                            المجموع
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {order.order_items.map((item) => (
-                          <tr key={item.id}>
-                            <td className="px-3 py-2 sm:px-4 text-xs sm:text-sm text-gray-900">
-                              {item.products.title}
-                            </td>
-                            {/* خلية عرض أيقونة الصورة */}
-                            <td className="px-3 py-2 sm:px-4 text-xs sm:text-sm text-center">
+                    {/* عرض العنوان ورقم الجوال */}
+                    {/* <div className="bg-white p-4 rounded border border-gray-200 mb-4">
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-gray-900 mb-1">
+                          <span className="font-bold">العنوان:</span>{" "}
+                          {order.customers
+                            ? formatAddress(order.customers)
+                            : "غير متوفر"}
+                        </p>
+                        <p className="text-sm font-medium text-gray-900">
+                          <span className="font-bold">رقم الجوال:</span>{" "}
+                          {order.customers
+                            ? order.customers.phone || "غير متوفر"
+                            : "غير متوفر"}
+                        </p>
+                      </div>
+                    </div> */}
+
+                    {/* عرض المنتجات */}
+                    <div className="bg-white p-4 rounded border border-gray-200">
+                      <p className="text-sm font-bold text-gray-900 mb-4">
+                        المنتجات:
+                      </p>
+
+                      <div className="space-y-6">
+                        {order.order_items.map((item, index) => (
+                          <div key={item.id} className="text-center">
+                            {/* صورة المنتج */}
+                            <div className="flex justify-center mb-2">
                               {item.products.image_url ? (
-                                <button
-                                  onClick={(e) =>
-                                    toggleProductImage(item.products.id, e)
-                                  }
-                                  className="inline-flex items-center justify-center p-1 rounded-full text-gray-400 hover:text-blue-500 hover:bg-gray-100 transition-colors"
-                                  title="عرض صورة المنتج"
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-5 w-5"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
+                                <div className="relative">
+                                  <img
+                                    src={item.products.image_url}
+                                    alt={item.products.title}
+                                    className="w-32 h-32 sm:w-40 sm:h-40 object-cover rounded-lg border border-gray-200"
+                                    onError={(e) => {
+                                      e.target.src = "/placeholder-image.jpg";
+                                      e.target.alt = "صورة المنتج غير متوفرة";
+                                    }}
+                                  />
+                                  <button
+                                    onClick={(e) =>
+                                      toggleProductImage(item.products.id, e)
+                                    }
+                                    className="absolute top-1 right-1 bg-white bg-opacity-80 rounded-full p-1 text-gray-600 hover:bg-opacity-100 transition-opacity"
+                                    title="عرض صورة أكبر"
                                   >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                    />
-                                  </svg>
-                                </button>
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
                               ) : (
-                                <span className="text-gray-400 text-xs">
-                                  لا توجد صورة
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 sm:px-4 text-xs sm:text-sm text-gray-900 text-center">
-                              {item.quantity}
-                            </td>
-                            <td className="px-3 py-2 sm:px-4 text-xs sm:text-sm text-gray-900 text-center">
-                              {item.products.price} دينار
-                            </td>
-                            <td className="px-3 py-2 sm:px-4 text-xs sm:text-sm text-gray-900 text-center">
-                              {(item.quantity * item.products.price).toFixed(2)}{" "}
-                              دينار
-                            </td>
-                          </tr>
-                        ))}
-                        {/* ... باقي الجدول */}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* عرض مناسب للموبايل */}
-                  <div className="bg-white rounded border border-gray-200 overflow-hidden sm:hidden">
-                    <div className="divide-y divide-gray-200">
-                      {order.order_items.map((item) => (
-                        <div key={item.id} className="p-3">
-                          <div className="flex justify-between items-center mb-1">
-                            <div className="flex items-center">
-                              <span className="text-xs font-medium">
-                                {item.products.title}
-                              </span>
-                              {item.products.image_url && (
-                                <button
-                                  onClick={(e) =>
-                                    toggleProductImage(item.products.id, e)
-                                  }
-                                  className="mr-2 p-1 rounded-full text-gray-400 hover:text-blue-500 hover:bg-gray-100 transition-colors"
-                                  title="عرض صورة المنتج"
-                                >
+                                <div className="w-32 h-32 sm:w-40 sm:h-40 bg-gray-200 rounded-lg border border-gray-300 flex items-center justify-center">
                                   <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    className="h-4 w-4"
+                                    className="h-12 w-12 text-gray-400"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -650,28 +608,39 @@ export default function OrdersPage() {
                                       d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                                     />
                                   </svg>
-                                </button>
+                                </div>
                               )}
                             </div>
-                            <span className="text-xs">
-                              {(item.quantity * item.products.price).toFixed(2)}{" "}
-                              دينار
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>الكمية: {item.quantity}</span>
-                            <span>السعر: {item.products.price} دينار</span>
-                          </div>
-                        </div>
-                      ))}
 
-                      <div className="p-3 bg-gray-50 flex justify-between items-center">
-                        <span className="text-xs font-medium">
-                          المجموع الكلي
-                        </span>
-                        <span className="text-xs font-bold">
-                          {calculateOrderTotal(order.order_items)} دينار
-                        </span>
+                            {/* تفاصيل المنتج */}
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-gray-900 mb-1">
+                                {item.products.title}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                الكمية: {item.quantity} | السعر:{" "}
+                                {item.products.price} دينار
+                              </p>
+                              <p className="text-sm font-medium text-gray-900 mt-1">
+                                المجموع:{" "}
+                                {(item.quantity * item.products.price).toFixed(
+                                  2
+                                )}{" "}
+                                دينار
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* المجموع الكلي */}
+                      <div className="mt-6 pt-4 border-t border-gray-200">
+                        <div className="text-center">
+                          <p className="text-lg font-bold text-gray-900">
+                            المجموع الكلي:{" "}
+                            {calculateOrderTotal(order.order_items)} دينار
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
