@@ -16,6 +16,11 @@ export default function AddToCartButton({ product, quantity = 1, className = '' 
   const totalItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   
   const handleAddToCart = () => {
+    if (!product.in_stock) {
+      alert('هذا المنتج غير متوفر حالياً');
+      return;
+    }
+    
     addToCart(product, quantity);
     setIsAdded(true);
     setShowCartBar(true);
@@ -38,15 +43,18 @@ export default function AddToCartButton({ product, quantity = 1, className = '' 
     <>
       <button
         onClick={handleAddToCart}
-        disabled={isAdded}
+        disabled={isAdded || !product.in_stock}
         className={`flex items-center justify-center rounded-md transition-all duration-200
-          ${isAdded ? 'bg-green-600 text-white' : 'bg-primary-600 text-white hover:bg-primary-700'}
+          ${!product.in_stock ? 'bg-gray-400 text-white cursor-not-allowed' : 
+            isAdded ? 'bg-green-600 text-white' : 'bg-primary-600 text-white hover:bg-primary-700'}
           text-sm sm:text-base md:text-lg
           py-2 px-3 sm:py-2 sm:px-4 md:py-3 md:px-6
           w-full sm:w-auto
           ${className}`}
       >
-        {isAdded ? (
+        {!product.in_stock ? (
+          <span>غير متوفر</span>
+        ) : isAdded ? (
           <>
             <Check size={18} className="ml-1" />
             <span>تمت الإضافة</span>

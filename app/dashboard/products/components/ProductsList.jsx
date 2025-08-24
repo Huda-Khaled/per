@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import ProductCard from "./ProductCard";
 import AddProductModal from "./AddProductModal";
 import CustomToaster from "./CustomToaster";
@@ -11,114 +11,136 @@ export default function ProductsList() {
   const [toast, setToast] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("created_at_desc");
-  const [connectionStatus, setConnectionStatus] = useState('CONNECTING');
+  const [connectionStatus, setConnectionStatus] = useState("CONNECTING");
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1024
   );
+  const [retryCount, setRetryCount] = useState(0);
+  const [maxRetries] = useState(3);
 
   // إنشاء Supabase client - مرة واحدة فقط
   const supabase = useMemo(() => createClientComponentClient(), []);
 
-  // تحميل المنتجات - مع useCallback مُحسّن
-  const loadProducts = useCallback(async (skipLoading = false) => {
-    try {
-      if (!skipLoading) setLoading(true);
+  // تحميل المنتجات - مع useCallback محسّن
+  const loadProducts = useCallback(
+    async (skipLoading = false) => {
+      try {
+        if (!skipLoading) setLoading(true);
 
-      let column, direction;
-      if (sortBy.endsWith('_asc')) {
-        column = sortBy.replace('_asc', '');
-        direction = 'asc';
-      } else if (sortBy.endsWith('_desc')) {
-        column = sortBy.replace('_desc', '');
-        direction = 'desc';
-      } else {
-        column = 'created_at';
-        direction = 'desc';
+        let column, direction;
+        if (sortBy.endsWith("_asc")) {
+          column = sortBy.replace("_asc", "");
+          direction = "asc";
+        } else if (sortBy.endsWith("_desc")) {
+          column = sortBy.replace("_desc", "");
+          direction = "desc";
+        } else {
+          column = "created_at";
+          direction = "desc";
+        }
+
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .order(column, { ascending: direction === "asc" });
+
+        if (error) throw error;
+
+        setProducts(data || []);
+        setConnectionStatus("CONNECTED");
+        setRetryCount(0); // إعادة تعيين عداد المحاولات عند النجاح
+      } catch (error) {
+        console.error("Error loading products:", error);
+        setConnectionStatus("ERROR");
+        setToast({
+          type: "error",
+          message: "حدث خطأ أثناء تحميل المنتجات",
+        });
+      } finally {
+        if (!skipLoading) setLoading(false);
       }
+    },
+    [supabase, sortBy]
+  );
 
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .order(column, { ascending: direction === "asc" });
-
-      if (error) throw error;
-
-      setProducts(data || []);
-      
-      // تحديث حالة الاتصال فقط لو مش متصل
-      setConnectionStatus(prev => prev === 'CONNECTED' ? prev : 'CONNECTED');
-      
-    } catch (error) {
-      console.error("Error loading products:", error);
-      setConnectionStatus('ERROR');
-      setToast({
-        type: "error",
-        message: "حدث خطأ أثناء تحميل المنتجات",
-      });
-    } finally {
-      if (!skipLoading) setLoading(false);
-    }
-  }, [supabase, sortBy]); // إزالة connectionStatus من dependencies
-
-  // Real-time subscription - مُحسّن ومبسّط
+  // Real-time subscription - محسّن ومبسط
   useEffect(() => {
     let subscription = null;
     let mounted = true;
+    let reconnectTimeout = null;
 
     const setupSubscription = async () => {
       if (!mounted) return;
 
       try {
-        console.log('Setting up products subscription...');
-        
+        console.log("Setting up products subscription...");
+
         // تحميل البيانات أولاً
         await loadProducts();
 
         if (!mounted) return;
 
-        // إنشاء subscription واحد فقط
+        // تنظيف أي subscription سابق
+        if (subscription) {
+          supabase.removeChannel(subscription);
+        }
+
+        // إنشاء subscription جديد
+        const channelName = `products_realtime_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+
         subscription = supabase
-          .channel(`products_${Date.now()}`) // اسم فريد للـ channel
+          .channel(channelName)
           .on(
-            'postgres_changes',
+            "postgres_changes",
             {
-              event: '*',
-              schema: 'public',
-              table: 'products'
+              event: "*",
+              schema: "public",
+              table: "products",
             },
             (payload) => {
-              console.log('Real-time update:', payload.eventType);
-              
+              console.log(
+                "Real-time update received:",
+                payload.eventType,
+                payload
+              );
+
               if (!mounted) return;
 
-              switch(payload.eventType) {
-                case 'INSERT':
-                  setProducts(prev => [payload.new, ...prev]);
+              switch (payload.eventType) {
+                case "INSERT":
+                  setProducts((prev) => {
+                    // تجنب التكرار
+                    const exists = prev.find((p) => p.id === payload.new.id);
+                    if (exists) return prev;
+                    return [payload.new, ...prev];
+                  });
                   setToast({
-                    type: 'success',
-                    message: `تم إضافة منتج جديد: ${payload.new.title || 'منتج جديد'}`
+                    type: "success",
+                    message: `تم إضافة منتج جديد: ${
+                      payload.new.title || "منتج جديد"
+                    }`,
                   });
                   break;
-                  
-                case 'UPDATE':
-                  setProducts(prev => 
-                    prev.map(product => 
-                      product.id === payload.new.id ? payload.new : product
+
+                case "UPDATE":
+                  setProducts((prev) =>
+                    prev.map((product) =>
+                      product.id === payload.new.id
+                        ? { ...product, ...payload.new }
+                        : product
                     )
                   );
-                  setToast({
-                    type: 'info',
-                    message: 'تم تحديث منتج'
-                  });
                   break;
-                  
-                case 'DELETE':
-                  setProducts(prev => 
-                    prev.filter(product => product.id !== payload.old.id)
+
+                case "DELETE":
+                  setProducts((prev) =>
+                    prev.filter((product) => product.id !== payload.old.id)
                   );
                   setToast({
-                    type: 'warning',
-                    message: 'تم حذف منتج'
+                    type: "warning",
+                    message: "تم حذف منتج",
                   });
                   break;
               }
@@ -126,27 +148,47 @@ export default function ProductsList() {
           )
           .subscribe((status) => {
             if (!mounted) return;
-            
-            console.log('Subscription status:', status);
-            
-            switch(status) {
-              case 'SUBSCRIBED':
-                setConnectionStatus('CONNECTED');
+
+            console.log("Subscription status:", status);
+
+            switch (status) {
+              case "SUBSCRIBED":
+                setConnectionStatus("CONNECTED");
+                setRetryCount(0);
                 break;
-              case 'CHANNEL_ERROR':
-              case 'TIMED_OUT':
-                setConnectionStatus('ERROR');
+
+              case "CHANNEL_ERROR":
+              case "TIMED_OUT":
+                setConnectionStatus("ERROR");
+                console.error("Subscription error:", status);
+
+                // إعادة المحاولة التلقائية
+                if (retryCount < maxRetries && mounted) {
+                  const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff
+                  console.log(
+                    `Retrying subscription in ${delay}ms... (attempt ${
+                      retryCount + 1
+                    }/${maxRetries})`
+                  );
+
+                  reconnectTimeout = setTimeout(() => {
+                    if (mounted) {
+                      setRetryCount((prev) => prev + 1);
+                      setupSubscription();
+                    }
+                  }, delay);
+                }
                 break;
-              case 'CLOSED':
-                setConnectionStatus('OFFLINE');
+
+              case "CLOSED":
+                setConnectionStatus("OFFLINE");
                 break;
             }
           });
-
       } catch (error) {
-        console.error('Subscription setup failed:', error);
+        console.error("Subscription setup failed:", error);
         if (mounted) {
-          setConnectionStatus('ERROR');
+          setConnectionStatus("ERROR");
         }
       }
     };
@@ -156,17 +198,20 @@ export default function ProductsList() {
     // تنظيف الـ subscription
     return () => {
       mounted = false;
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
       if (subscription) {
-        console.log('Cleaning up subscription...');
+        console.log("Cleaning up subscription...");
         supabase.removeChannel(subscription);
       }
     };
-  }, [supabase]); // فقط supabase في dependencies - إزالة loadProducts
+  }, [supabase, retryCount, maxRetries]); // أضفت retryCount هنا
 
   // تحديث loadProducts عند تغيير sortBy
   useEffect(() => {
     loadProducts(true); // بدون loading indicator
-  }, [sortBy]);
+  }, [sortBy, loadProducts]);
 
   // تتبع تغيرات حجم الشاشة
   useEffect(() => {
@@ -182,55 +227,79 @@ export default function ProductsList() {
     if (typeof window === "undefined") return;
 
     const handleOnline = () => {
-      console.log('Network back online');
+      console.log("Network back online, reloading products...");
+      setConnectionStatus("CONNECTING");
+      setRetryCount(0);
       loadProducts(true);
     };
 
     const handleOffline = () => {
-      console.log('Network offline');
-      setConnectionStatus('OFFLINE');
+      console.log("Network offline");
+      setConnectionStatus("OFFLINE");
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
-  }, []); // إزالة loadProducts من dependencies
+  }, [loadProducts]);
 
   // دالة لإعادة الاتصال
   const reconnect = useCallback(() => {
-    setConnectionStatus('CONNECTING');
+    setConnectionStatus("CONNECTING");
+    setRetryCount(0);
     loadProducts();
   }, [loadProducts]);
 
   // مؤشر حالة الاتصال
   const getConnectionIndicator = () => {
     const indicators = {
-      CONNECTING: { color: 'bg-yellow-400', text: 'جاري الاتصال...', animate: 'animate-pulse' },
-      CONNECTED: { color: 'bg-green-400', text: 'متصل مباشر', animate: 'animate-pulse' },
-      ERROR: { color: 'bg-red-400', text: 'خطأ في الاتصال', animate: '' },
-      TIMEOUT: { color: 'bg-orange-400', text: 'انتهت مهلة الاتصال', animate: '' },
-      OFFLINE: { color: 'bg-gray-400', text: 'غير متصل', animate: '' }
+      CONNECTING: {
+        color: "bg-yellow-400",
+        text: "جاري الاتصال...",
+        animate: "animate-pulse",
+      },
+      CONNECTED: {
+        color: "bg-green-400",
+        text: "متصل مباشر",
+        animate: "animate-pulse",
+      },
+      ERROR: {
+        color: "bg-red-400",
+        text: `خطأ في الاتصال ${
+          retryCount > 0 ? `(المحاولة ${retryCount}/${maxRetries})` : ""
+        }`,
+        animate: "",
+      },
+      TIMEOUT: {
+        color: "bg-orange-400",
+        text: "انتهت مهلة الاتصال",
+        animate: "",
+      },
+      OFFLINE: { color: "bg-gray-400", text: "غير متصل", animate: "" },
     };
 
     const indicator = indicators[connectionStatus] || indicators.CONNECTING;
-    
+
     return (
       <div className="flex items-center gap-2 text-sm text-gray-500">
-        <div className={`w-2 h-2 ${indicator.color} rounded-full ${indicator.animate}`}></div>
+        <div
+          className={`w-2 h-2 ${indicator.color} rounded-full ${indicator.animate}`}
+        ></div>
         <span>{indicator.text}</span>
-        {(connectionStatus === 'ERROR' || connectionStatus === 'TIMEOUT') && (
-          <button 
-            onClick={reconnect}
-            className="text-xs text-blue-600 hover:text-blue-800 underline ml-1"
-            disabled={loading}
-          >
-            إعادة الاتصال
-          </button>
-        )}
+        {(connectionStatus === "ERROR" || connectionStatus === "TIMEOUT") &&
+          retryCount >= maxRetries && (
+            <button
+              onClick={reconnect}
+              className="text-xs text-blue-600 hover:text-blue-800 underline ml-1"
+              disabled={loading}
+            >
+              إعادة المحاولة
+            </button>
+          )}
       </div>
     );
   };
@@ -258,13 +327,13 @@ export default function ProductsList() {
 
   // دالة لإعادة التحميل اليدوي
   const handleRefresh = async () => {
-    setToast({ type: 'info', message: 'جاري تحديث البيانات...' });
-    
+    setToast({ type: "info", message: "جاري تحديث البيانات..." });
+
     try {
       await loadProducts();
-      setToast({ type: 'success', message: 'تم تحديث البيانات بنجاح' });
+      setToast({ type: "success", message: "تم تحديث البيانات بنجاح" });
     } catch (error) {
-      setToast({ type: 'error', message: 'فشل في تحديث البيانات' });
+      setToast({ type: "error", message: "فشل في تحديث البيانات" });
     }
   };
 
@@ -283,7 +352,7 @@ export default function ProductsList() {
             title="تحديث البيانات"
           >
             <svg
-              className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`}
+              className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -322,8 +391,18 @@ export default function ProductsList() {
       <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 flex flex-col sm:flex-row gap-3 sm:items-center">
         <div className="relative flex-grow">
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="h-5 w-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
           </div>
           <input
@@ -353,15 +432,16 @@ export default function ProductsList() {
       </div>
 
       {/* مؤشر الاتصال */}
-      <div className="flex justify-end">
-        {getConnectionIndicator()}
-      </div>
+      <div className="flex justify-end">{getConnectionIndicator()}</div>
 
       {/* المنتجات */}
       {loading ? (
         <div className={`grid ${getGridCols()} gap-4 sm:gap-6`}>
           {[...Array(windowWidth < 640 ? 3 : 6)].map((_, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-sm p-4 animate-pulse">
+            <div
+              key={index}
+              className="bg-white rounded-lg shadow-sm p-4 animate-pulse"
+            >
               <div className="h-32 sm:h-40 bg-gray-200 rounded-md mb-4"></div>
               <div className="h-5 bg-gray-200 rounded w-3/4 mb-3"></div>
               <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
@@ -374,30 +454,67 @@ export default function ProductsList() {
           {searchTerm ? (
             <>
               <div className="text-gray-400 mb-2">
-                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="w-12 h-12 mx-auto"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
               </div>
-              <p className="text-gray-500 mb-2">لا توجد نتائج للبحث عن "{searchTerm}"</p>
-              <button onClick={() => setSearchTerm("")} className="text-blue-600 hover:underline">
+              <p className="text-gray-500 mb-2">
+                لا توجد نتائج للبحث عن "{searchTerm}"
+              </p>
+              <button
+                onClick={() => setSearchTerm("")}
+                className="text-blue-600 hover:underline"
+              >
                 مسح البحث
               </button>
             </>
           ) : (
             <>
               <div className="text-gray-400 mb-2">
-                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2-2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                <svg
+                  className="w-12 h-12 mx-auto"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2-2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                  />
                 </svg>
               </div>
-              <p className="text-gray-500 mb-4">لا توجد منتجات بعد. قم بإضافة منتج جديد للبدء.</p>
+              <p className="text-gray-500 mb-4">
+                لا توجد منتجات بعد. قم بإضافة منتج جديد للبدء.
+              </p>
               <button
                 onClick={() => setShowAddModal(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <span className="flex items-center justify-center">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  <svg
+                    className="w-4 h-4 mr-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
                   </svg>
                   إضافة منتج جديد
                 </span>
@@ -432,7 +549,7 @@ export default function ProductsList() {
           message={toast.message}
           onClose={() => setToast(null)}
           position={windowWidth < 640 ? "bottom-center" : "bottom-right"}
-          autoClose={3000}
+          duration={3000}
         />
       )}
     </div>

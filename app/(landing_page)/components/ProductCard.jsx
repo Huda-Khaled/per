@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import AddToCartButton from './ui/AddToCartButton';
-import ViewProductButton from './ui/ViewProductButton';
+// import ViewProductButton from './ui/ViewProductButton';
 
 export default function ProductCard({ product }) {
   return (
@@ -56,6 +56,14 @@ export default function ProductCard({ product }) {
             )}
           </div>
         )}
+
+        {/* Stock Status */}
+        <div className="flex justify-center items-center mb-2">
+          <div className={`w-2 h-2 rounded-full ml-1 ${product.in_stock ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <span className={`text-xs sm:text-sm font-medium ${product.in_stock ? 'text-green-600' : 'text-red-600'}`}>
+            {product.in_stock ? 'متوفر' : 'غير متوفر'}
+          </span>
+        </div>
 
         {/* Action Buttons - Responsive grid layout */}
         <div className="grid grid-cols-1 gap-2 mt-2 sm:mt-3">
