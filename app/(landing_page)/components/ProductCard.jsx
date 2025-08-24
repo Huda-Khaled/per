@@ -7,31 +7,22 @@ export default function ProductCard({ product }) {
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg flex flex-col h-[350px] sm:h-[400px] md:h-[450px]">
       {/* Product Image - Responsive height based on device size */}
-      <Link 
-        href={`/product/${product.id}`} 
-        className="block relative h-[180px] sm:h-[220px] md:h-[250px] w-full"
-        aria-label={`View ${product.title}`}
-      >
-        <div className="w-full h-full relative overflow-hidden">
-          <Image 
-            src={product.image_url} 
-            alt={product.title} 
-            fill
-            className="object-contain transition-transform duration-300 hover:scale-105" 
-            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            loading="lazy"
-            placeholder="blur"
-            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjMyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2ZXJzaW9uPSIxLjEiLz4="
-          />
-        </div>
-      </Link>
+      <div className="relative h-[180px] sm:h-[220px] md:h-[250px] w-full">
+        <Image
+          src={product.image_url}
+          alt={product.title}
+          fill
+          className="object-contain transition-transform duration-300 hover:scale-105"
+          sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          loading="lazy"
+          placeholder="blur"
+          blurDataURL="data:image/svg+xml;base64,..."
+        />
+      </div>
 
       {/* Product Details - Flexible padding and spacing */}
       <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
-        <Link 
-          href={`/product/${product.id}`} 
-          className="block mb-auto"
-        >
+        <Link href={`/product/${product.id}`} className="block mb-auto">
           <h3 className="text-base sm:text-lg md:text-xl font-semibold text-center mb-1 sm:mb-2 line-clamp-2 hover:text-primary-600 transition-colors duration-200">
             {product.title}
           </h3>
@@ -59,9 +50,17 @@ export default function ProductCard({ product }) {
 
         {/* Stock Status */}
         <div className="flex justify-center items-center mb-2">
-          <div className={`w-2 h-2 rounded-full ml-1 ${product.in_stock ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className={`text-xs sm:text-sm font-medium ${product.in_stock ? 'text-green-600' : 'text-red-600'}`}>
-            {product.in_stock ? 'متوفر' : 'غير متوفر'}
+          <div
+            className={`w-2 h-2 rounded-full ml-1 ${
+              product.in_stock ? "bg-green-500" : "bg-red-500"
+            }`}
+          ></div>
+          <span
+            className={`text-xs sm:text-sm font-medium ${
+              product.in_stock ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {product.in_stock ? "متوفر" : "غير متوفر"}
           </span>
         </div>
 
