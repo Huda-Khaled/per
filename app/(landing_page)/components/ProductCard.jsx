@@ -1,8 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import AddToCartButton from './ui/AddToCartButton';
-// import ViewProductButton from './ui/ViewProductButton';
-
 export default function ProductCard({ product }) {
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg flex flex-col h-[350px] sm:h-[400px] md:h-[450px]">
