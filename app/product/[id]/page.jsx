@@ -1,6 +1,6 @@
 import React from 'react';
 // import Image from 'next/image';
-import { supabase } from '../../../lib/utils';
+import { supabase } from "../../../lib/supabaseClient";
 import ProductClient from './ProductClient'; // هنعمل component منفصل
 
 // ✅ Server Component مع ISR
