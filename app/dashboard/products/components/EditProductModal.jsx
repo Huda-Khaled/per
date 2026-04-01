@@ -119,21 +119,24 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-3 sm:p-5"
       onClick={() => !isSubmitting && onClose()}
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-modal-title"
     >
-      <div 
+      <div
         className="bg-white rounded-lg w-full max-w-lg md:max-w-2xl mx-auto overflow-hidden shadow-xl transform transition-all relative"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: '90vh' }}
+        style={{ maxHeight: "90vh" }}
       >
         {/* الهيدر */}
         <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 bg-gray-50">
-          <h2 id="edit-modal-title" className="text-lg sm:text-xl font-bold text-gray-800">
+          <h2
+            id="edit-modal-title"
+            className="text-lg sm:text-xl font-bold text-gray-800"
+          >
             تعديل المنتج
           </h2>
           <button
@@ -142,17 +145,33 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
             disabled={isSubmitting}
             aria-label="إغلاق"
           >
-            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-5 h-5 sm:w-6 sm:h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
 
         {/* المحتوى */}
-        <div className="p-4 sm:p-6" style={{ maxHeight: 'calc(90vh - 8rem)', overflowY: 'auto' }}>
+        <div
+          className="p-4 sm:p-6"
+          style={{ maxHeight: "calc(90vh - 8rem)", overflowY: "auto" }}
+        >
           <form onSubmit={handleFormSubmit} className="space-y-4">
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1 text-right">
+              <label
+                htmlFor="title"
+                className="block text-sm font-medium text-gray-700 mb-1 text-right"
+              >
                 عنوان المنتج
               </label>
               <input
@@ -169,7 +188,10 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
             </div>
 
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1 text-right">
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-gray-700 mb-1 text-right"
+              >
                 وصف المنتج
               </label>
               <textarea
@@ -186,7 +208,10 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
             </div>
 
             <div>
-              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1 text-right">
+              <label
+                htmlFor="price"
+                className="block text-sm font-medium text-gray-700 mb-1 text-right"
+              >
                 السعر (ريال)
               </label>
               <input
@@ -205,7 +230,10 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
             </div>
 
             <div>
-              <label htmlFor="product-image" className="block text-sm font-medium text-gray-700 mb-1 text-right">
+              <label
+                htmlFor="product-image"
+                className="block text-sm font-medium text-gray-700 mb-1 text-right"
+              >
                 صورة المنتج
               </label>
               <div className="mt-1 flex items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50 transition-colors">
@@ -240,11 +268,13 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
                         disabled={isSubmitting}
                       />
                     </label>
-                    <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF حتى 10MB</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      PNG, JPG, GIF حتى 10MB
+                    </p>
                   </div>
                 </div>
               </div>
-              
+
               {imagePreview && (
                 <div className="mt-4 relative h-48 sm:h-64 w-full border rounded-md overflow-hidden">
                   <Image
@@ -253,19 +283,30 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
                     layout="fill"
                     objectFit="contain"
                     className="rounded-md"
+                    unoptimized
                   />
                   <button
                     type="button"
                     onClick={() => {
-                      setImagePreview('');
+                      setImagePreview("");
                       setImageFile(null);
                     }}
                     className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
                     aria-label="حذف الصورة"
                     disabled={isSubmitting}
                   >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -289,14 +330,30 @@ export default function EditProductModal({ product, onClose, onProductUpdated })
               >
                 {isSubmitting ? (
                   <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     جاري التحديث...
                   </span>
                 ) : (
-                  'تعديل المنتج'
+                  "تعديل المنتج"
                 )}
               </button>
             </div>

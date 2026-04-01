@@ -15,6 +15,7 @@ export default function ProductCard({ product }) {
           loading="lazy"
           placeholder="blur"
           blurDataURL="data:image/svg+xml;base64,..."
+          unoptimized
         />
       </div>
 

@@ -7,27 +7,31 @@ export default function CartItem({ item }) {
 
   return (
     <div className="py-3 md:py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 border-b pb-3 md:pb-4">
-      
       {/* صورة المنتج - Responsive image container */}
       <div className="w-full sm:w-16 md:w-20 lg:w-24 h-32 sm:h-16 md:h-20 lg:h-24 relative rounded overflow-hidden">
-        <Image 
-          src={item.image} 
-          alt={item.title} 
-          fill 
+        <Image
+          src={item.image}
+          alt={item.title}
+          fill
           sizes="(max-width: 640px) 100vw, (max-width: 768px) 16vw, (max-width: 1024px) 20vw, 24vw"
           className="object-cover rounded"
+          unoptimized
         />
       </div>
 
       {/* معلومات المنتج - Flexible content that adapts to screen size */}
       <div className="flex-1 min-w-0">
-        <h3 className="font-medium text-sm md:text-base truncate">{item.title}</h3>
-        <p className="text-gray-600 text-xs md:text-sm mt-1">السعر: {item.salePrice} دينار</p>
+        <h3 className="font-medium text-sm md:text-base truncate">
+          {item.title}
+        </h3>
+        <p className="text-gray-600 text-xs md:text-sm mt-1">
+          السعر: {item.salePrice} دينار
+        </p>
       </div>
 
       {/* التحكم في الكمية - Better sizing for touch devices */}
       <div className="flex items-center mt-2 sm:mt-0">
-        <button 
+        <button
           onClick={() => {
             if (item.quantity > 1) {
               updateQuantity(item.id, item.quantity - 1);
@@ -42,7 +46,7 @@ export default function CartItem({ item }) {
         <span className="w-8 sm:w-10 text-center border-y border-gray-200 py-1 text-xs sm:text-sm">
           {item.quantity}
         </span>
-        <button 
+        <button
           onClick={() => updateQuantity(item.id, item.quantity + 1)}
           className="bg-gray-200 px-2 sm:px-3 py-1 rounded-r text-sm touch-manipulation min-w-[32px] min-h-[32px]"
           aria-label="Increase quantity"
@@ -56,7 +60,7 @@ export default function CartItem({ item }) {
         <p className="font-semibold text-sm md:text-base">
           {item.salePrice * item.quantity} دينار
         </p>
-        <button 
+        <button
           onClick={() => removeFromCart(item.id)}
           className="text-red-500 flex items-center text-xs md:text-sm p-1 hover:bg-red-50 rounded transition-colors"
           aria-label="Remove item"
