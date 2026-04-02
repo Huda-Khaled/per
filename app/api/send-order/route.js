@@ -20,7 +20,7 @@ export async function POST(request) {
 
     const { data, error } = await resend.emails.send({
       from: "orders@rose-stare.com",
-      to: "hudakh1632002@gmail.com",
+      to: "Kwt.3otorat@gmail.com",
       subject: "🛍️ طلب جديد!",
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
