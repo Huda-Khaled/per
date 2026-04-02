@@ -267,7 +267,7 @@ export default function CheckoutPage() {
           p_delivery_fee: deliveryFee,
           p_total_amount: calculatedTotal,
           p_order_items: orderItems,
-        }
+        },
       );
 
       if (orderError) throw orderError;
@@ -287,6 +287,23 @@ export default function CheckoutPage() {
 
       // تنظيف سلة التسوق بعد إكمال الطلب
       clearCart();
+
+      // إرسال إيميل للإشعار بالطلب الجديد
+      await fetch("/api/send-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: formData.fullName,
+          customerPhone: formData.phone,
+          customerAddress: deliveryAddress,
+          items: actualProducts.map((p) => ({
+            title: p.title,
+            quantity: p.quantity,
+            salePrice: p.price,
+          })),
+          total: calculatedTotal,
+        }),
+      });
 
       // عرض رسالة نجاح
       showNotification("تم تقديم طلبك بنجاح! سنتواصل معك قريبًا لتأكيد الطلب.");
