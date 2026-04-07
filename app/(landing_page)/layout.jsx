@@ -16,8 +16,8 @@ export default function RootLayout({ children }) {
     <html lang="ar" dir="rtl">
       <body className={inter.className}>
         <PromoBanner
-          message="ضمان ٣ أيام على جميع المنتجات"
-          messageEn="3-day warranty on all products"
+          message="ضمان ٣ أيام على جميع المنتجات | عطور أصلية 100% تستر بدون كرتون"
+          messageEn="3-day warranty on all products • 100% original tester perfumes without box"
         />
         <Header />
         <main className="min-h-screen">{children}</main>
